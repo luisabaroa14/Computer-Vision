@@ -23,10 +23,10 @@ fgbg = cv2.bgsegm.createBackgroundSubtractorMOG(nmixtures=10)
 kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
 
 # Function for finding the human pose, returns a list with all the landmarks
-# from the detected subjetc
+# from the detected subject
 def findHumanPose(image, result, draw=True):
 
-    lmList = []
+    coordinates = []
 
     # Check for pose results
     if result.pose_landmarks:
@@ -36,28 +36,47 @@ def findHumanPose(image, result, draw=True):
             mp_drawing.draw_landmarks(
                 frame, result.pose_landmarks, mp_pose.POSE_CONNECTIONS)
 
+        h, w = image.shape
+
+        # Get right hip coordinates according to the frame size
+        right_hip_x = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_HIP].x * w
+        right_hip_y = results.pose_landmarks.landmark[mp_pose.PoseLandmark.RIGHT_HIP].y * h
+
+        # Get left hip coordinates according to the frame size
+        left_hip_x = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_HIP].x * w
+        left_hip_y = results.pose_landmarks.landmark[mp_pose.PoseLandmark.LEFT_HIP].y * h
+
+        center_hip_x = (right_hip_x + left_hip_x)/2
+        center_hip_y = (right_hip_y + left_hip_y)/2
+
+        # print(f'Hip coordinates: ('f'{center_hip_x}, 'f'{center_hip_y})')
+
+        coordinates = [center_hip_x, center_hip_y]
+
         # Iterates over the pose landmarks results to return a list
         # with the id of each landmark and the coordinates according
         # to the size of the image
-        for id, lm in enumerate(result.pose_landmarks.landmark):
+        # for id, lm in enumerate(result.pose_landmarks.landmark):
 
-            # Dimensions of the image
-            h, w = image.shape
+        #     # Dimensions of the image
+        #     h, w = image.shape
 
-            # Coordinates of the landmark
-            cx, cy = int(lm.x * w), int(lm.y * h)
+        #     # Coordinates of the landmark
+        #     cx, cy = int(lm.x * w), int(lm.y * h)
 
-            lmList.append([id, cx, cy])
+        #     lmList.append([id, cx, cy])
 
-          #   cv2.circle(image, (cx, cy), 5, (255, 0, 0), cv2.FILLED)
+        cv2.circle(frame, (int(center_hip_x), int(center_hip_y)),
+                   10, (0, 200, 200), cv2.FILLED)
 
-    return lmList
+    # return lmList
+    return coordinates
 
 
 # Setting the context with the Pose objetc the confidence parameters
 with mp_pose.Pose(
-        min_detection_confidence=0.5,
-        min_tracking_confidence=0.5) as pose:
+        min_detection_confidence=0.8,
+        min_tracking_confidence=0.8) as pose:
 
     # Start loop
     while True:
@@ -76,29 +95,39 @@ with mp_pose.Pose(
 
         # Draw a black rectangle on frame to show the state
         # of the selected areas
-        cv2.rectangle(frame, (0, 0), (int(width/4), 100), (0, 0, 0), -1)
+        cv2.rectangle(frame, (0, 0), (int(width/2), 100), (0, 0, 0), -1)
 
         # Setting main and secondary colors
-        color = (0, 255, 0)
-        sec_color = (200, 200, 0)
+        color = (150, 200, 0)
+        sec_color = (150, 200, 0)
 
         # Initial state texts
-        state_text = "No movement DOWN"
-        sec_state_text = "No movement UP"
+        state_text = "Main Area empty"
+        sec_state_text = "Sec  Area empty"
+
+        main_max_w = width * 8/10
+        main_min_w = width * 6/10
+        main_max_h = height * 8/10
+        main_min_h = height * 2/10
 
         # Main area points
         main_area_pts = np.array(
-            [[int(width*8/10), int(height*8/10)],
-             [int((width*6/10)), int(height*8/10)],
-             [int((width*6/10)), int(height*2/10)],
-             [int((width*8/10)), int(height*2/10)]])
+            [[int(main_max_w), int(main_max_h)],
+             [int(main_min_w), int(main_max_h)],
+             [int(main_min_w), int(main_min_h)],
+             [int(main_max_w), int(main_min_h)]])
+
+        sec_max_w = width * 5/10
+        sec_min_w = width * 3/20
+        sec_max_h = height * 7/10
+        sec_min_h = height * 3/10
 
         # Secondary area points
         sec_area_pts = np.array(
-            [[int(width*5/10), int(height*7/10)],
-             [int((width*3/20)), int(height*7/10)],
-             [int((width*3/20)), int(height*3/10)],
-             [int((width*5/10)), int(height*3/10)]])
+            [[int(sec_max_w), int(sec_max_h)],
+             [int(sec_min_w), int(sec_max_h)],
+             [int(sec_min_w), int(sec_min_h)],
+             [int(sec_max_w), int(sec_min_h)]])
 
         # Determine auxiliar images for defining the area where
         # the movement detector will work, setting the contourns
@@ -115,7 +144,7 @@ with mp_pose.Pose(
         results = pose.process(frame)
 
         # Get the coordinates of the landmarks
-        lmList = findHumanPose(image_area, results, draw=True)
+        coordinates = findHumanPose(image_area, results, draw=True)
 
         # Get the binary image areas and increase quality of the procces.
         # The white areas will represent movement.
@@ -145,10 +174,10 @@ with mp_pose.Pose(
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
                 # Change the main state to indicate movement detection
-                state_text = "Movement DOWN"
+                state_text = "Main Area Movement detected"
 
                 # Change the main color to indicate the movement
-                color = (0, 0, 255)
+                color = (255, 0, 255)
 
         for cnt in sec_cnts:
             if cv2.contourArea(cnt) > 2000:
@@ -156,10 +185,25 @@ with mp_pose.Pose(
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
                 # Change the secondary state to indicate movement detection
-                sec_state_text = "Movement UP"
+                sec_state_text = "Sec  Area Movement detected"
 
                 # Change the secondary color to indicate the movement
                 sec_color = (255, 0, 255)
+
+        if len(coordinates) > 0:
+            # print('Cx ' + str(coordinates[0])+ '  Cy ' + str(coordinates[1]))
+            # print('X max ' + str(main_max_w)+ '  X min ' + str(main_min_w))
+            # print('Y max ' + str(main_max_h)+ '  Y min ' + str(main_min_h))
+
+            # Detects if a human is inside of the main area
+            if coordinates[0] > main_min_w and coordinates[0] < main_max_w and coordinates[1] > main_min_h and coordinates[1] < main_max_h:
+                state_text = 'Main Area Human detected'
+                color = (200, 150, 0)
+
+            # Detects if a human is inside of the secondary area
+            if coordinates[0] > sec_min_w and coordinates[0] < sec_max_w and coordinates[1] > sec_min_h and coordinates[1] < sec_max_h:
+                sec_state_text = 'Sec  Area Human detected'
+                sec_color = (200, 150, 0)
 
         # Draw the areas of interest
         cv2.drawContours(frame, [main_area_pts], -1, color, 2)
@@ -182,8 +226,7 @@ with mp_pose.Pose(
         cv2.imshow("frame", frame)
 
         # Wait for ['q'] key to close the loop
-        k = cv2.waitKey(30) & 0xff
-        if k == ord("q"):
+        if cv2.waitKey(30) & 0xff == ord("q"):
             break
 
     # Close all windows
