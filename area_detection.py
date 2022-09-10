@@ -1,6 +1,7 @@
 import cv2
 import numpy as np
 import mediapipe as mp
+from fps import FPS
 import os
 
 # Clean terminal
@@ -12,8 +13,12 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 
 # Using either webcam or video
-cap = cv2.VideoCapture('videos/Gente2.mp4')
+cap = cv2.VideoCapture('videos/Mezcladora1.MOV')
+# cap = cv2.VideoCapture('videos/Gente2.mp4')
 # cap = cv2.VideoCapture(0)
+
+# Start an instance to manage the video
+fps = FPS().start()
 
 # Initialize background substractor class with the number of Gaussian mixtures
 fgbg = cv2.bgsegm.createBackgroundSubtractorMOG(nmixtures=10)
@@ -69,7 +74,6 @@ def findHumanPose(image, result, draw=True):
         cv2.circle(frame, (int(center_hip_x), int(center_hip_y)),
                    10, (0, 200, 200), cv2.FILLED)
 
-    # return lmList
     return coordinates
 
 
@@ -97,32 +101,37 @@ with mp_pose.Pose(
         # of the selected areas
         cv2.rectangle(frame, (0, 0), (int(width/2), 100), (0, 0, 0), -1)
 
+        # Draw a black rectangle on frame to show the fps
+        cv2.rectangle(frame, (int(width*.85), 0), (width, 70), (0, 0, 0), -1)
+
         # Setting main and secondary colors
         color = (150, 200, 0)
         sec_color = (150, 200, 0)
 
         # Initial state texts
-        state_text = "Main Area empty"
-        sec_state_text = "Sec  Area empty"
+        state_text = "Key Area empty"
+        sec_state_text = "Sec Area empty"
 
+        # Set the main area points acording the screen size
         main_max_w = width * 8/10
         main_min_w = width * 6/10
         main_max_h = height * 8/10
         main_min_h = height * 2/10
 
-        # Main area points
+        # Store the main area points
         main_area_pts = np.array(
             [[int(main_max_w), int(main_max_h)],
              [int(main_min_w), int(main_max_h)],
              [int(main_min_w), int(main_min_h)],
              [int(main_max_w), int(main_min_h)]])
 
+        # Set the secondary area points acording the screen size
         sec_max_w = width * 5/10
         sec_min_w = width * 3/20
         sec_max_h = height * 7/10
         sec_min_h = height * 3/10
 
-        # Secondary area points
+        # Store the secondary area points
         sec_area_pts = np.array(
             [[int(sec_max_w), int(sec_max_h)],
              [int(sec_min_w), int(sec_max_h)],
@@ -174,7 +183,7 @@ with mp_pose.Pose(
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
                 # Change the main state to indicate movement detection
-                state_text = "Main Area Movement detected"
+                state_text = "Key Area Movement detected"
 
                 # Change the main color to indicate the movement
                 color = (255, 0, 255)
@@ -185,7 +194,7 @@ with mp_pose.Pose(
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
 
                 # Change the secondary state to indicate movement detection
-                sec_state_text = "Sec  Area Movement detected"
+                sec_state_text = "Sec Area Movement detected"
 
                 # Change the secondary color to indicate the movement
                 sec_color = (255, 0, 255)
@@ -197,12 +206,12 @@ with mp_pose.Pose(
 
             # Detects if a human is inside of the main area
             if coordinates[0] > main_min_w and coordinates[0] < main_max_w and coordinates[1] > main_min_h and coordinates[1] < main_max_h:
-                state_text = 'Main Area Human detected'
+                state_text = 'Key Area Human detected'
                 color = (200, 150, 0)
 
             # Detects if a human is inside of the secondary area
             if coordinates[0] > sec_min_w and coordinates[0] < sec_max_w and coordinates[1] > sec_min_h and coordinates[1] < sec_max_h:
-                sec_state_text = 'Sec  Area Human detected'
+                sec_state_text = 'Sec Area Human detected'
                 sec_color = (200, 150, 0)
 
         # Draw the areas of interest
@@ -216,6 +225,10 @@ with mp_pose.Pose(
         cv2.putText(frame, sec_state_text, (10, 80),
                     cv2.FONT_HERSHEY_SIMPLEX, 1, sec_color, 2)
 
+        # Display the FPS indicator
+        cv2.putText(frame, f'FPS:{int(fps.fps())}', (int(width*0.85), 50),
+                    cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
+
         # Show the main mask
         cv2.imshow('fgmask', fgmask)
 
@@ -228,6 +241,16 @@ with mp_pose.Pose(
         # Wait for ['q'] key to close the loop
         if cv2.waitKey(30) & 0xff == ord("q"):
             break
+
+        # Update the FPS counter
+        fps.update()
+
+    # Stop the FPS
+    fps.stop()
+
+    # Print meant fps and duration at the end
+    print(" [INFO] duration: {:.2f}".format(fps.elapsed()))
+    print(" [INFO] mean fps: {:.2f}".format(fps.getMeanFps()))
 
     # Close all windows
     cap.release()
