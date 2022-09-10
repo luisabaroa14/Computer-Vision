@@ -13,7 +13,8 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 
 # Using either webcam or video
-cap = cv2.VideoCapture('videos/Gente2.mp4')
+cap = cv2.VideoCapture('videos/Mezcladora1.MOV')
+# cap = cv2.VideoCapture('videos/Gente2.mp4')
 # cap = cv2.VideoCapture(0)
 
 # Start an instance to manage the video
@@ -127,8 +128,8 @@ with mp_pose.Pose(
         # Set the secondary area points acording the screen size
         sec_max_w = width * 5/10
         sec_min_w = width * 3/20
-        sec_max_h = height * 7/10
-        sec_min_h = height * 3/10
+        sec_max_h = height * 3/10
+        sec_min_h = height * 2/10
 
         # Store the secondary area points
         sec_area_pts = np.array(
@@ -229,10 +230,10 @@ with mp_pose.Pose(
                     cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 255, 0), 2)
 
         # Show the main mask
-        cv2.imshow('fgmask', fgmask)
+        # cv2.imshow('fgmask', fgmask)
 
         # Show the secondary masl
-        cv2.imshow('fgmask_sec', sec_fgmask)
+        # cv2.imshow('fgmask_sec', sec_fgmask)
 
         # Show the main frame
         cv2.imshow("frame", frame)
