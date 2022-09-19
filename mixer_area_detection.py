@@ -16,7 +16,7 @@ mp_drawing_styles = mp.solutions.drawing_styles
 mp_pose = mp.solutions.pose
 
 path = 'Mezcladora2'
-screenSize = (1920,1080)
+screenSize = (854,480)
 
 # Using either webcam or video
 cap = cv2.VideoCapture(f'videos/{path}.MOV')
@@ -31,7 +31,9 @@ videoResult = cv2.VideoWriter(
 fps = FPS().start()
 
 # Initialize background substractor class with the number of Gaussian mixtures
-fgbg = cv2.bgsegm.createBackgroundSubtractorMOG(nmixtures=10)
+# fgbg = cv2.createBackgroundSubtractorMOG2()
+# fgbg = cv2.bgsegm.createBackgroundSubtractorMOG(nmixtures=10)
+fgbg = cv2.bgsegm.createBackgroundSubtractorGMG()
 
 # Setting the morphological operations, giving the structuring element (shape)
 # and the size
@@ -105,6 +107,8 @@ while True:
     # Creating a frame with shades of gray
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+    gray = cv2.GaussianBlur(gray, (21, 21), 0)
+
     # Draw a black rectangle on frame to show the state
     # of the selected areas
     cv2.rectangle(frame, (0, 0), (int(width/2), 100), (0, 0, 0), -1)
@@ -134,15 +138,20 @@ while True:
          [int(main_max_w), int(main_min_h)]])
 
     # Set the secondary area points acording the screen size
-    sec_max_w = width * 4/10
+    sec_max_w = width * 9/20
     sec_min_w = width * 0/20
-    sec_max_h = height * 6/10
+    sec_max_h1 = height * 13.5/20
+    sec_max_h2 = height * 10.5/20
     sec_min_h = height * 2.5/10
+    # sec_max_w = width * 4/10
+    # sec_min_w = width * 0/20
+    # sec_max_h = height * 6/10
+    # sec_min_h = height * 2.5/10
 
     # Store the secondary area points
     sec_area_pts = np.array(
-        [[int(sec_max_w), int(sec_max_h)],
-         [int(sec_min_w), int(sec_max_h)],
+        [[int(sec_max_w), int(sec_max_h2)],
+         [int(sec_min_w), int(sec_max_h1)],
          [int(sec_min_w), int(sec_min_h)],
          [int(sec_max_w), int(sec_min_h)]])
 
@@ -184,7 +193,7 @@ while True:
     # reference. The reference will change based on the movement
     # and area of interest.
     for cnt in cnts:
-        if cv2.contourArea(cnt) > 4000:
+        if cv2.contourArea(cnt) > 3000:
             x, y, w, h = cv2.boundingRect(cnt)
             # Draw a rectangle based on the coordinates of the contour
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
@@ -194,7 +203,7 @@ while True:
             color = (255, 0, 255)
 
     for cnt in sec_cnts:
-        if cv2.contourArea(cnt) > 4000:
+        if cv2.contourArea(cnt) > 3000:
             x, y, w, h = cv2.boundingRect(cnt)
             cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
             # Change the secondary state to indicate movement detection
@@ -231,11 +240,11 @@ while True:
     # Write the output video
     videoResult.write(frame.astype('uint8'))
 
-    # Show the main mask
-    cv2.imshow('fgmask', fgmask)
-
     # Show the secondary masl
     cv2.imshow('fgmask_sec', sec_fgmask)
+
+    # Show the main mask
+    cv2.imshow('fgmask', fgmask)
 
     # # Show the main frame
     cv2.imshow("frame", frame)
