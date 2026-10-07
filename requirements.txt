@@ -1,0 +1,9 @@
+# Core Computer Vision & Processing
+opencv-contrib-python>=4.8.0.76
+numpy>=1.24.0
+
+# Human Pose Estimation
+mediapipe>=0.10.0
+
+# Environment Configuration
+python-dotenv>=1.0.0
