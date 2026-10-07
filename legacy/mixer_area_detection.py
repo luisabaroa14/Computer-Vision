@@ -2,6 +2,12 @@
 """Mixer Area Detection - Legacy entry point forwarded to the modular monitoring engine."""
 
 import os
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from main import run_monitoring, parse_source
 
 

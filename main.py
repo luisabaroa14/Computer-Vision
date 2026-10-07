@@ -7,10 +7,7 @@ import sys
 from typing import Optional, Union
 import cv2
 
-from config import MonitorConfig
-from detector import ZoneMotionDetector
-from fps import FPS
-from video_stream import VideoStream
+from src import MonitorConfig, ZoneMotionDetector, FPS, VideoStream
 
 
 def parse_source(source_str: str) -> Union[int, str]:

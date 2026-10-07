@@ -49,13 +49,17 @@ flowchart LR
 ├── LICENSE                   # MIT License
 ├── README.md                 # Project documentation
 ├── requirements.txt          # Minimal, pinned Python dependencies
-├── config.py                 # Central configuration (zones, thresholds, dimensions)
-├── detector.py               # Motion detection & MediaPipe pose pipeline
-├── fps.py                    # Rolling FPS measurement utility
-├── video_stream.py           # Thread-safe RTSP/camera ingest handler
 ├── main.py                   # Unified CLI application entry point
-├── area_detection.py         # Backward-compatible legacy launcher
-└── mixer_area_detection.py   # Backward-compatible legacy launcher
+├── src/                      # Core application package
+│   ├── __init__.py           # Package exports
+│   ├── config.py             # Central configuration (zones, thresholds, dimensions)
+│   ├── detector.py           # Motion detection & MediaPipe pose pipeline
+│   ├── fps.py                # Rolling FPS measurement utility
+│   └── video_stream.py       # Thread-safe RTSP/camera ingest handler
+└── legacy/                   # Historical scripts preserved for backward compatibility
+    ├── README.md             # Legacy documentation note
+    ├── area_detection.py     # Legacy runner wrapper
+    └── mixer_area_detection.py # Legacy runner wrapper
 ```
 
 ---
@@ -102,7 +106,7 @@ python main.py --source 0
 
 ### Run with an RTSP IP Camera
 ```bash
-python main.py --source "rtsp://username:password@192.168.1.100:554/live"
+python main.py --source "rtsp://<username>:<password>@<camera-ip>:554/live"
 ```
 
 ### Run with a Recorded Video File and Save Output
@@ -138,7 +142,7 @@ python main.py --source 0 --no-pose
 
 ## Customizing Zones
 
-Zones are defined in `config.py` using relative fractional coordinates `(x, y)` between `0.0` and `1.0`. This ensures zones remain accurate regardless of input stream resolution:
+Zones are defined in `src/config.py` using relative fractional coordinates `(x, y)` between `0.0` and `1.0`. This ensures zones remain accurate regardless of input stream resolution:
 
 ```python
 ZoneDefinition(
@@ -169,7 +173,7 @@ Run monitoring headlessly inside Docker and record outputs to host machine:
 
 ```bash
 docker run --rm \
-  -e VIDEO_SOURCE="rtsp://user:pass@192.168.1.100:554/live" \
+  -e VIDEO_SOURCE="rtsp://<username>:<password>@<camera-ip>:554/live" \
   -v "$(pwd)/output_videos:/app/output_videos" \
   cv-zone-monitor --record --output output_videos/docker_run.avi
 ```

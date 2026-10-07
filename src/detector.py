@@ -11,7 +11,10 @@ try:
 except ImportError:
     MEDIAPIPE_AVAILABLE = False
 
-from config import MonitorConfig, ZoneDefinition
+try:
+    from src.config import MonitorConfig, ZoneDefinition
+except ImportError:
+    from config import MonitorConfig, ZoneDefinition
 
 
 @dataclass
