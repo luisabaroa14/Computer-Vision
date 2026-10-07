@@ -1,43 +1,82 @@
-# import the necessary packages
-from threading import Thread
+"""Threaded video stream reader for low-latency RTSP and camera capture."""
+
+from threading import Lock, Thread
+from typing import Optional, Tuple, Union
 import cv2
+import numpy as np
 
 
 class VideoStream:
-    def __init__(self, src=0, name="VideoStream"):
-        # Initialize the video stream and read the first frame
-        # from the stream
-        self.stream = cv2.VideoCapture(src)
-        (self.grabbed, self.frame) = self.stream.read()
+    """Asynchronous video stream reader that fetches frames in a separate thread
 
-        # Initialize the thread name
+    to eliminate OpenCV buffer lag for real-time processing.
+    """
+
+    def __init__(self, src: Union[int, str] = 0, name: str = "VideoStream"):
+        """Initialize the video stream capture.
+
+        Args:
+            src: Camera device index (int), video file path (str), or RTSP URL (str).
+            name: Thread identifier name.
+        """
+        self.src = src
         self.name = name
+        self.stream = cv2.VideoCapture(src)
 
-        # Initialize the variable used to indicate if the thread should
-        # be stopped
+        if not self.stream.isOpened():
+            print(f"[WARN] Failed to open video source: {src}")
+
+        self.grabbed, self.frame = self.stream.read()
         self.stopped = False
+        self._lock = Lock()
+        self._thread: Optional[Thread] = None
 
-    def start(self):
-        # start the thread to read frames from the video stream
-        t = Thread(target=self.update, name=self.name, args=())
-        t.daemon = True
-        t.start()
+    def start(self) -> "VideoStream":
+        """Start the background thread to continuously fetch frames."""
+        if self._thread is not None and self._thread.is_alive():
+            return self
+
+        self.stopped = False
+        self._thread = Thread(target=self.update, name=self.name, daemon=True)
+        self._thread.start()
         return self
 
-    def update(self):
-        # Loop until the thread is stopped
-        while True:
-            # if the thread indicator variable is set, stop the thread
-            if self.stopped:
-                return
+    def update(self) -> None:
+        """Continually read frames until stopped or stream ends."""
+        while not self.stopped:
+            if not self.stream.isOpened():
+                break
 
-            # Otherwise, read the next frame from the stream
-            (self.grabbed, self.frame) = self.stream.read()
+            grabbed, frame = self.stream.read()
+            with self._lock:
+                self.grabbed = grabbed
+                if grabbed:
+                    self.frame = frame
+                else:
+                    self.stopped = True
+                    break
 
-    def read(self):
-        # Return the frame most recently read
-        return self.grabbed, self.frame
+    def read(self) -> Tuple[bool, Optional[np.ndarray]]:
+        """Return the most recently grabbed frame in a thread-safe manner."""
+        with self._lock:
+            if self.frame is not None:
+                return self.grabbed, self.frame.copy()
+            return self.grabbed, None
 
-    def release(self):
-        # Indicate that the thread should be stopped
+    def stop(self) -> None:
+        """Signal the background thread to stop."""
         self.stopped = True
+        if self._thread is not None and self._thread.is_alive():
+            self._thread.join(timeout=1.0)
+
+    def release(self) -> None:
+        """Stop thread and release OpenCV video capture resources."""
+        self.stop()
+        if self.stream.isOpened():
+            self.stream.release()
+
+    def __enter__(self) -> "VideoStream":
+        return self.start()
+
+    def __exit__(self, exc_type, exc_val, exc_tb) -> None:
+        self.release()
